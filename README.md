@@ -3,6 +3,7 @@
 [![Latest Stable Version](https://poser.pugx.org/simialbi/yii2-widget-turbo/v/stable?format=flat-square)](https://packagist.org/packages/simialbi/yii2-widget-turbo)
 [![Total Downloads](https://poser.pugx.org/simialbi/yii2-widget-turbo/downloads?format=flat-square)](https://packagist.org/packages/simialbi/yii2-widget-turbo)
 [![License](https://poser.pugx.org/simialbi/yii2-widget-turbo/license?format=flat-square)](https://packagist.org/packages/simialbi/yii2-widget-turbo)
+[![build](https://github.com/simialbi/yii2-widget-turbo/actions/workflows/build.yml/badge.svg)](https://github.com/simialbi/yii2-widget-turbo/actions/workflows/build.yml)
 
 ## Resources
 
