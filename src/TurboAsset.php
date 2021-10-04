@@ -7,6 +7,7 @@
 namespace simialbi\yii2\turbo;
 
 use simialbi\yii2\web\AssetBundle;
+use yii\web\View;
 
 /**
  * The turbo asset bundle
@@ -16,13 +17,15 @@ class TurboAsset extends AssetBundle
     /**
      * @inheritdoc
      */
-    public $sourcePath = '@npm/hotwired--turbo/dist';
+    public $js = [
+        'js/turbo.es2017-umd.js'
+    ];
 
     /**
      * @inheritdoc
      */
-    public $js = [
-        'turbo.es2017-umd.js'
+    public $jsOptions = [
+        'position' => View::POS_HEAD
     ];
 
     /**
@@ -30,8 +33,7 @@ class TurboAsset extends AssetBundle
      */
     public $publishOptions = [
         'only' => [
-            'turbo.es2017-umd.js',
-            'turbo.es2017-umd.js.map'
+            'turbo.es2017-umd.js'
         ]
     ];
 }

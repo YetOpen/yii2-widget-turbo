@@ -6,6 +6,7 @@
 
 namespace simialbi\yii2\turbo;
 
+use Yii;
 use yii\base\InvalidConfigException;
 use yii\base\Widget;
 use yii\helpers\Html;
@@ -76,7 +77,19 @@ class Frame extends Widget
             $this->options['target'] = $this->target;
         }
 
-        echo Html::beginTag('turbo-frame', $this->options);
+        if ($this->getRequestTurboFrame() === $this->options['id']) {
+            if (isset($this->options['src'])) {
+                unset($this->options['src']);
+            }
+            $view = $this->getView();
+            $view->clear();
+            $view->beginPage();
+            echo Html::beginTag('turbo-frame', $this->options);
+            $view->head();
+            $view->beginBody();
+        } else {
+            echo Html::beginTag('turbo-frame', $this->options);
+        }
     }
 
     /**
@@ -84,8 +97,28 @@ class Frame extends Widget
      */
     public function run()
     {
-        TurboAsset::register($this->view);
+        if ($this->getRequestTurboFrame() === $this->options['id']) {
+            $view = $this->getView();
+            $view->endBody();
+            $view->endPage(true);
+            echo Html::endTag('turbo-frame');
+            Yii::$app->end();
 
+            return;
+        }
+
+        TurboAsset::register($this->view);
         echo Html::endTag('turbo-frame');
+    }
+
+    /**
+     * Check if turbo is needed
+     * @return string|null
+     */
+    protected function getRequestTurboFrame(): ?string
+    {
+        $headers = Yii::$app->getRequest()->getHeaders();
+
+        return $headers->get('Turbo-Frame');
     }
 }
