@@ -1393,23 +1393,11 @@ Copyright © 2021 Basecamp, LLC
             // console.log(newScriptElements);
             // for await (let i = 0; i < newScriptElements.length; i++) {
             for (const inertScriptElement of newScriptElements) {
-                // const inertScriptElement = newScriptElements[i];
-                // let render = true;
-                // if (inertScriptElement.src !== '') {
-                //     for (const existingScripts of scripts) {
-                //         if (existingScripts.src === inertScriptElement.src) {
-                //             render = false;
-                //             break;
-                //         }
-                //     }
-                // }
-                // if (render) {
-                    if (inertScriptElement.src) {
-                        window.externalScripts.push(this.include(inertScriptElement.src));
-                    } else {
-                        internalScripts.push(inertScriptElement);
-                    }
-                // }
+                if (inertScriptElement.src) {
+                    window.externalScripts.push(this.include(inertScriptElement.src));
+                } else {
+                    internalScripts.push(inertScriptElement);
+                }
             }
 
             // console.log(window.externalScripts);
@@ -3323,7 +3311,7 @@ Copyright © 2021 Basecamp, LLC
             this.scrollObserver = new ScrollObserver(this);
             this.streamObserver = new StreamObserver(this);
             this.frameRedirector = new FrameRedirector(document.documentElement);
-            this.drive = true;
+            this.drive = false;
             this.enabled = true;
             this.progressBarDelay = 500;
             this.started = false;
@@ -4089,7 +4077,7 @@ Copyright © 2021 Basecamp, LLC
         shouldInterceptNavigation(element, submitter)
         {
             const id = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('data-turbo-frame')) || element.getAttribute('data-turbo-frame') || this.element.getAttribute('target');
-            if (!this.enabled || id == '_top') {
+            if (!this.enabled || id === '_top') {
                 return false;
             }
             if (id) {
@@ -4101,10 +4089,8 @@ Copyright © 2021 Basecamp, LLC
             if (!session.elementDriveEnabled(element)) {
                 return false;
             }
-            if (submitter && !session.elementDriveEnabled(submitter)) {
-                return false;
-            }
-            return true;
+            return !(submitter && !session.elementDriveEnabled(submitter));
+
         }
     }
 
