@@ -4301,36 +4301,38 @@ Copyright © 2021 Basecamp, LLC
         }
     }
 
-    FrameElement.delegateConstructor = FrameController;
-    customElements.define('turbo-frame', FrameElement);
-    customElements.define('turbo-stream', StreamElement);
+    window.addEventListener('load', function () {
+        FrameElement.delegateConstructor = FrameController;
+        customElements.define('turbo-frame', FrameElement);
+        customElements.define('turbo-stream', StreamElement);
 
-    (() => {
-        let element = document.currentScript;
-        if (!element) {
-            return;
-        }
-        if (element.hasAttribute('data-turbo-suppress-warning')) {
-            return;
-        }
-        while (element = element.parentElement) {
-            if (element == document.body) {
-                return console.warn(unindent`
-        You are loading Turbo from a <script> element inside the <body> element. This is probably not what you meant to do!
-
-        Load your application’s JavaScript bundle inside the <head> element instead. <script> elements in <body> are evaluated with each page change.
-
-        For more information, see: https://turbo.hotwired.dev/handbook/building#working-with-script-elements
-
-        ——
-        Suppress this warning by adding a "data-turbo-suppress-warning" attribute to: %s
-      `, element.outerHTML);
+        (() => {
+            let element = document.currentScript;
+            if (!element) {
+                return;
             }
-        }
-    })();
+            if (element.hasAttribute('data-turbo-suppress-warning')) {
+                return;
+            }
+            while (element = element.parentElement) {
+                if (element == document.body) {
+                    return console.warn(unindent`
+            You are loading Turbo from a <script> element inside the <body> element. This is probably not what you meant to do!
 
-    window.Turbo = Turbo;
-    start();
+            Load your application’s JavaScript bundle inside the <head> element instead. <script> elements in <body> are evaluated with each page change.
+
+            For more information, see: https://turbo.hotwired.dev/handbook/building#working-with-script-elements
+
+            ——
+            Suppress this warning by adding a "data-turbo-suppress-warning" attribute to: %s
+          `, element.outerHTML);
+                }
+            }
+        })();
+
+        window.Turbo = Turbo;
+        start();
+    }, false);
 
     exports.PageRenderer = PageRenderer;
     exports.PageSnapshot = PageSnapshot;
