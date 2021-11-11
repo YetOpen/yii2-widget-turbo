@@ -45,15 +45,43 @@ class Modal extends Widget
     public function run(): string
     {
         ob_start();
+        $this->options['bodyOptions'] = ['class' => ['widget' => '']];
         call_user_func([$this->modalClass, 'begin'], $this->options);
         echo Frame::widget([
             'options' => [
                 'id' => $this->options['id'] . '-frame'
-            ],
-            'lazyLoading' => true
+            ]
         ]);
         call_user_func([$this->modalClass, 'end']);
 
+        $this->registerPlugin();
+
         return ob_get_clean();
+    }
+
+    /**
+     * Register js code
+     */
+    protected function registerPlugin()
+    {
+        $id = $this->options['id'];
+        $js = <<<JS
+jQuery(document).on('click.sa.turbo', '[data-turbo-frame="$id-frame"]', function (evt) {
+    // debugger;
+    var \$modal = jQuery('#$id'),
+        \$this = jQuery(this),
+        frame = \$modal.find('#$id-frame').get(0);
+
+    evt.preventDefault();
+
+    \$modal.modal('show');
+    if (frame.src === \$this.prop('href')) {
+        frame.reload();
+    } else {
+        frame.src = \$this.prop('href');
+    }
+});
+JS;
+        $this->view->registerJs($js);
     }
 }
