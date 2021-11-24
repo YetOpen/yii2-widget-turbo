@@ -82,6 +82,10 @@ class Frame extends Widget
                 unset($this->options['src']);
             }
             $view = $this->getView();
+            if (Yii::$app->hasModule('debug')) {
+                $module = Yii::$app->getModule('debug');
+                $view->off($view::EVENT_END_BODY, [$module, 'renderToolbar']);
+            }
             $view->clear();
             $view->beginPage();
             echo Html::beginTag('turbo-frame', $this->options);
