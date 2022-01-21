@@ -1,10 +1,10 @@
 /*
-Turbo 7.0.1
+Turbo 7.1.0
 Copyright © 2021 Basecamp, LLC
  */
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) : typeof define === 'function' && define.amd ? define(['exports'], factory) : (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.Turbo = {}));
-})(this, (function (exports) {
+}(this, (function (exports) {
     'use strict';
 
     (function () {
@@ -23,13 +23,69 @@ Copyright © 2021 Basecamp, LLC
         Object.setPrototypeOf(HTMLElement, BuiltInHTMLElement);
     })();
 
+    /**
+     * The MIT License (MIT)
+     *
+     * Copyright (c) 2019 Javan Makhmali
+     *
+     * Permission is hereby granted, free of charge, to any person obtaining a copy
+     * of this software and associated documentation files (the "Software"), to deal
+     * in the Software without restriction, including without limitation the rights
+     * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     * copies of the Software, and to permit persons to whom the Software is
+     * furnished to do so, subject to the following conditions:
+     *
+     * The above copyright notice and this permission notice shall be included in
+     * all copies or substantial portions of the Software.
+     *
+     * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+     * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+     * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+     * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+     * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+     * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+     * THE SOFTWARE.
+     */
+
+    (function (prototype) {
+        if (typeof prototype.requestSubmit == 'function') {
+            return;
+        }
+
+        prototype.requestSubmit = function (submitter) {
+            if (submitter) {
+                validateSubmitter(submitter, this);
+                submitter.click();
+            } else {
+                submitter = document.createElement('input');
+                submitter.type = 'submit';
+                submitter.hidden = true;
+                this.appendChild(submitter);
+                submitter.click();
+                this.removeChild(submitter);
+            }
+        };
+
+        function validateSubmitter(submitter, form)
+        {
+            submitter instanceof HTMLElement || raise(TypeError, 'parameter 1 is not of type \'HTMLElement\'');
+            submitter.type === 'submit' || raise(TypeError, 'The specified element is not a submit button');
+            submitter.form === form || raise(DOMException, 'The specified element is not owned by this form element', 'NotFoundError');
+        }
+
+        function raise(errorConstructor, message, name)
+        {
+            throw new errorConstructor('Failed to execute \'requestSubmit\' on \'HTMLFormElement\': ' + message + '.', name);
+        }
+    })(HTMLFormElement.prototype);
+
     const submittersByForm = new WeakMap;
 
     function findSubmitterFromClickTarget(target)
     {
         const element = target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
         const candidate = element ? element.closest('input, button') : null;
-        return (candidate === null || candidate === void 0 ? void 0 : candidate.type) == 'submit' ? candidate : null;
+        return (candidate === null || candidate === void 0 ? void 0 : candidate.type) === 'submit' ? candidate : null;
     }
 
     function clickCaptured(event)
@@ -56,7 +112,7 @@ Copyright © 2021 Basecamp, LLC
         Object.defineProperty(prototype, 'submitter', {
             get()
             {
-                if (this.type == 'submit' && this.target instanceof HTMLFormElement) {
+                if (this.type === 'submit' && this.target instanceof HTMLFormElement) {
                     return submittersByForm.get(this.target);
                 }
             }
@@ -174,9 +230,9 @@ Copyright © 2021 Basecamp, LLC
 
         attributeChangedCallback(name)
         {
-            if (name == 'loading') {
+            if (name === 'loading') {
                 this.delegate.loadingStyleChanged();
-            } else if (name == 'src') {
+            } else if (name === 'src') {
                 this.delegate.sourceURLChanged();
             } else {
                 this.delegate.disabledChanged();
@@ -209,6 +265,12 @@ Copyright © 2021 Basecamp, LLC
         }
     }
 
+    function getAction(form, submitter)
+    {
+        const action = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('formaction')) || form.getAttribute('action') || form.action;
+        return expandURL(action);
+    }
+
     function getExtension(url)
     {
         return (getLastPathComponent(url).match(/\.[^.]*$/) || [])[0] || '';
@@ -225,6 +287,11 @@ Copyright © 2021 Basecamp, LLC
         return baseURL.href === expandURL(prefix).href || baseURL.href.startsWith(prefix);
     }
 
+    function locationIsVisitable(location, rootLocation)
+    {
+        return isPrefixedBy(location, rootLocation) && isHTML(location);
+    }
+
     function getRequestURL(url)
     {
         const anchor = getAnchor(url);
@@ -238,7 +305,7 @@ Copyright © 2021 Basecamp, LLC
 
     function urlsAreEqual(left, right)
     {
-        return expandURL(left).href == expandURL(right).href;
+        return expandURL(left).href === expandURL(right).href;
     }
 
     function getPathComponents(url)
@@ -383,7 +450,7 @@ Copyright © 2021 Basecamp, LLC
     function interpolate(strings, values)
     {
         return strings.reduce((result, string, i) => {
-            const value = values[i] == undefined ? '' : values[i];
+            const value = values[i] === undefined ? '' : values[i];
             return result + string + value;
         }, '');
     }
@@ -391,16 +458,46 @@ Copyright © 2021 Basecamp, LLC
     function uuid()
     {
         return Array.apply(null, {length: 36}).map((_, i) => {
-            if (i == 8 || i == 13 || i == 18 || i == 23) {
+            if (i === 8 || i === 13 || i === 18 || i === 23) {
                 return '-';
-            } else if (i == 14) {
+            } else if (i === 14) {
                 return '4';
-            } else if (i == 19) {
+            } else if (i === 19) {
                 return (Math.floor(Math.random() * 4) + 8).toString(16);
             } else {
                 return Math.floor(Math.random() * 15).toString(16);
             }
         }).join('');
+    }
+
+    function getAttribute(attributeName, ...elements)
+    {
+        for (const value of elements.map(element => element === null || element === void 0 ? void 0 : element.getAttribute(attributeName))) {
+            if (typeof value == 'string') {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    function markAsBusy(...elements)
+    {
+        for (const element of elements) {
+            if (element.localName === 'turbo-frame') {
+                element.setAttribute('busy', '');
+            }
+            element.setAttribute('aria-busy', 'true');
+        }
+    }
+
+    function clearBusyState(...elements)
+    {
+        for (const element of elements) {
+            if (element.localName === 'turbo-frame') {
+                element.removeAttribute('busy');
+            }
+            element.removeAttribute('aria-busy');
+        }
     }
 
     var FetchMethod;
@@ -438,12 +535,8 @@ Copyright © 2021 Basecamp, LLC
             this.delegate = delegate;
             this.method = method;
             this.headers = this.defaultHeaders;
-            if (this.isIdempotent) {
-                this.url = mergeFormDataEntries(location, [...body.entries()]);
-            } else {
-                this.body = body;
-                this.url = location;
-            }
+            this.body = body;
+            this.url = location;
             this.target = target;
         }
 
@@ -470,7 +563,7 @@ Copyright © 2021 Basecamp, LLC
                 credentials: 'same-origin',
                 headers: this.headers,
                 redirect: 'follow',
-                body: this.body,
+                body: this.isIdempotent ? null : this.body,
                 signal: this.abortSignal,
                 referrer: (_a = this.delegate.referrer) === null || _a === void 0 ? void 0 : _a.href
             };
@@ -485,7 +578,7 @@ Copyright © 2021 Basecamp, LLC
 
         get isIdempotent()
         {
-            return this.method == FetchMethod.get;
+            return this.method === FetchMethod.get;
         }
 
         get abortSignal()
@@ -543,7 +636,7 @@ Copyright © 2021 Basecamp, LLC
                 cancelable: true,
                 detail: {
                     fetchOptions,
-                    url: this.url.href,
+                    url: this.url,
                     resume: this.resolveRequestPromise
                 },
                 target: this.target
@@ -552,23 +645,6 @@ Copyright © 2021 Basecamp, LLC
                 await requestInterception;
             }
         }
-    }
-
-    function mergeFormDataEntries(url, entries)
-    {
-        const currentSearchParams = new URLSearchParams(url.search);
-        for (const [name, value] of entries) {
-            if (value instanceof File) {
-                continue;
-            }
-            if (currentSearchParams.has(name)) {
-                currentSearchParams.delete(name);
-                url.searchParams.set(name, value);
-            } else {
-                url.searchParams.append(name, value);
-            }
-        }
-        return url;
     }
 
     class AppearanceObserver
@@ -624,7 +700,7 @@ Copyright © 2021 Basecamp, LLC
         get foreignElements()
         {
             return this.templateChildren.reduce((streamElements, child) => {
-                if (child.tagName.toLowerCase() == 'turbo-stream') {
+                if (child.tagName.toLowerCase() === 'turbo-stream') {
                     return [...streamElements, child];
                 } else {
                     return streamElements;
@@ -686,6 +762,10 @@ Copyright © 2021 Basecamp, LLC
             this.formElement = formElement;
             this.submitter = submitter;
             this.formData = buildFormData(formElement, submitter);
+            this.location = expandURL(this.action);
+            if (this.method === FetchMethod.get) {
+                mergeFormDataEntries(this.location, [...this.body.entries()]);
+            }
             this.fetchRequest = new FetchRequest(this, this.method, this.location, this.body, this.formElement);
             this.mustRedirect = mustRedirect;
         }
@@ -704,14 +784,9 @@ Copyright © 2021 Basecamp, LLC
             return ((_a = this.submitter) === null || _a === void 0 ? void 0 : _a.getAttribute('formaction')) || this.formElement.getAttribute('action') || formElementAction || '';
         }
 
-        get location()
-        {
-            return expandURL(this.action);
-        }
-
         get body()
         {
-            if (this.enctype == FormEnctype.urlEncoded || this.method == FetchMethod.get) {
+            if (this.enctype === FormEnctype.urlEncoded || this.method === FetchMethod.get) {
                 return new URLSearchParams(this.stringFormData);
             } else {
                 return this.formData;
@@ -736,13 +811,34 @@ Copyright © 2021 Basecamp, LLC
             }, []);
         }
 
+        get confirmationMessage()
+        {
+            return this.formElement.getAttribute('data-turbo-confirm');
+        }
+
+        get needsConfirmation()
+        {
+            return this.confirmationMessage !== null;
+        }
+
+        static confirmMethod(message, element)
+        {
+            return confirm(message);
+        }
+
         async start()
         {
             const {
                 initialized,
                 requesting
             } = FormSubmissionState;
-            if (this.state == initialized) {
+            if (this.needsConfirmation) {
+                const answer = FormSubmission.confirmMethod(this.confirmationMessage, this.formElement);
+                if (!answer) {
+                    return;
+                }
+            }
+            if (this.state === initialized) {
                 this.state = requesting;
                 return this.fetchRequest.perform();
             }
@@ -754,7 +850,7 @@ Copyright © 2021 Basecamp, LLC
                 stopping,
                 stopped
             } = FormSubmissionState;
-            if (this.state != stopping && this.state != stopped) {
+            if (this.state !== stopping && this.state !== stopped) {
                 this.state = stopping;
                 this.fetchRequest.cancel();
                 return true;
@@ -774,7 +870,9 @@ Copyright © 2021 Basecamp, LLC
 
         requestStarted(request)
         {
+            var _a;
             this.state = FormSubmissionState.waiting;
+            (_a = this.submitter) === null || _a === void 0 ? void 0 : _a.setAttribute('disabled', '');
             dispatch('turbo:submit-start', {
                 target: this.formElement,
                 detail: {formSubmission: this}
@@ -827,7 +925,9 @@ Copyright © 2021 Basecamp, LLC
 
         requestFinished(request)
         {
+            var _a;
             this.state = FormSubmissionState.stopped;
+            (_a = this.submitter) === null || _a === void 0 ? void 0 : _a.removeAttribute('disabled');
             dispatch('turbo:submit-end', {
                 target: this.formElement,
                 detail: Object.assign({formSubmission: this}, this.result)
@@ -846,7 +946,7 @@ Copyright © 2021 Basecamp, LLC
         const formData = new FormData(formElement);
         const name = submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('name');
         const value = submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('value');
-        if (name && value != null && formData.get(name) != value) {
+        if (name && value != null && formData.get(name) !== value) {
             formData.append(name, value);
         }
         return formData;
@@ -872,7 +972,20 @@ Copyright © 2021 Basecamp, LLC
 
     function responseSucceededWithoutRedirect(response)
     {
-        return response.statusCode == 200 && !response.redirected;
+        return response.statusCode === 200 && !response.redirected;
+    }
+
+    function mergeFormDataEntries(url, entries)
+    {
+        const searchParams = new URLSearchParams;
+        for (const [name, value] of entries) {
+            if (value instanceof File) {
+                continue;
+            }
+            searchParams.append(name, value);
+        }
+        url.search = searchParams.toString();
+        return url;
     }
 
     class Snapshot
@@ -937,9 +1050,10 @@ Copyright © 2021 Basecamp, LLC
         {
             this.submitBubbled = ((event) => {
                 const form = event.target;
-                if (form instanceof HTMLFormElement && form.closest('turbo-frame, html') == this.element) {
+                if (!event.defaultPrevented && form instanceof HTMLFormElement && form.closest('turbo-frame, html') === this.element) {
                     const submitter = event.submitter || undefined;
-                    if (this.delegate.shouldInterceptFormSubmission(form, submitter)) {
+                    const method = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('formmethod')) || form.method;
+                    if (method !== 'dialog' && this.delegate.shouldInterceptFormSubmission(form, submitter)) {
                         event.preventDefault();
                         event.stopImmediatePropagation();
                         this.delegate.formSubmissionIntercepted(form, submitter);
@@ -1015,29 +1129,19 @@ Copyright © 2021 Basecamp, LLC
             }
         }
 
-        scrollToPosition({
-                             x,
-                             y
-                         })
+        scrollToPosition({x, y})
         {
             this.scrollRoot.scrollTo(x, y);
         }
 
         scrollToTop()
         {
-            this.scrollToPosition({
-                x: 0,
-                y: 0
-            });
+            this.scrollToPosition({x: 0, y: 0});
         }
 
         async render(renderer)
         {
-            const {
-                isPreview,
-                shouldRender,
-                newSnapshot: snapshot
-            } = renderer;
+            const {isPreview, shouldRender, newSnapshot: snapshot} = renderer;
             if (shouldRender) {
                 try {
                     this.renderPromise = new Promise(resolve => this.resolveRenderPromise = resolve);
@@ -1150,7 +1254,7 @@ Copyright © 2021 Basecamp, LLC
         respondsToEventTarget(target)
         {
             const element = target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
-            return element && element.closest('turbo-frame, html') == this.element;
+            return element && element.closest('turbo-frame, html') === this.element;
         }
     }
 
@@ -1211,7 +1315,7 @@ Copyright © 2021 Basecamp, LLC
 
         getPlaceholderById(id)
         {
-            return this.placeholders.find(element => element.content == id);
+            return this.placeholders.find(element => element.content === id);
         }
     }
 
@@ -1225,11 +1329,12 @@ Copyright © 2021 Basecamp, LLC
 
     class Renderer
     {
-        constructor(currentSnapshot, newSnapshot, isPreview)
+        constructor(currentSnapshot, newSnapshot, isPreview, willRender = true)
         {
             this.currentSnapshot = currentSnapshot;
             this.newSnapshot = newSnapshot;
             this.isPreview = isPreview;
+            this.willRender = willRender;
             this.promise = new Promise((resolve, reject) => this.resolvingFunctions = {
                 resolve,
                 reject
@@ -1282,7 +1387,7 @@ Copyright © 2021 Basecamp, LLC
 
         createScriptElement(element)
         {
-            if (element.getAttribute('data-turbo-eval') == 'false') {
+            if (element.getAttribute('data-turbo-eval') === 'false') {
                 return element;
             } else {
                 const createdScriptElement = document.createElement('script');
@@ -1290,9 +1395,8 @@ Copyright © 2021 Basecamp, LLC
                     createdScriptElement.nonce = this.cspNonce;
                 }
                 createdScriptElement.textContent = element.textContent;
-                copyElementAttributes(createdScriptElement, element);
                 createdScriptElement.async = false;
-                createdScriptElement.defer = false;
+                copyElementAttributes(createdScriptElement, element);
                 return createdScriptElement;
             }
         }
@@ -1412,8 +1516,7 @@ Copyright © 2021 Basecamp, LLC
         include(url)
         {
             const that = this;
-            return new Promise(function(resolve, reject) {
-                // console.log(url);
+            return new Promise(function (resolve, reject) {
                 const scripts = document.querySelectorAll('script[src]');
                 let render = true;
                 for (const existingScripts of scripts) {
@@ -1433,23 +1536,19 @@ Copyright © 2021 Basecamp, LLC
                     script.src = url;
                 }
 
-                // console.log('test');
                 script.onload = async function () {
-                    // console.log(url + ' fulfilled');
                     await that.wait(50);
                     resolve({script});
                 };
 
 
                 window.setTimeout(function () {
-                    // console.log(url + ' fulfilled delayed');
                     resolve({script});
                 }, 1000);
 
                 if (render) {
                     document.body.appendChild(script);
                 } else {
-                    // console.log(url + ' fulfilled');
                     resolve({script});
                 }
             });
@@ -1457,8 +1556,8 @@ Copyright © 2021 Basecamp, LLC
 
         wait(time)
         {
-            return new Promise(function(resolve, fail){
-                window.setTimeout(function() {
+            return new Promise(function (resolve, fail){
+                window.setTimeout(function () {
                     resolve();
                 }, time)
             })
@@ -1467,7 +1566,7 @@ Copyright © 2021 Basecamp, LLC
 
     function readScrollLogicalPosition(value, defaultValue)
     {
-        if (value == 'end' || value == 'start' || value == 'center' || value == 'nearest') {
+        if (value === 'end' || value === 'start' || value === 'center' || value === 'nearest') {
             return value;
         } else {
             return defaultValue;
@@ -1493,20 +1592,20 @@ Copyright © 2021 Basecamp, LLC
         static get defaultCSS()
         {
             return unindent`
-      .turbo-progress-bar {
-        position: fixed;
-        display: block;
-        top: 0;
-        left: 0;
-        height: 3px;
-        background: #0076ff;
-        z-index: 9999;
-        transition:
-          width ${ProgressBar.animationDuration}ms ease-out,
-          opacity ${ProgressBar.animationDuration / 2}ms ${ProgressBar.animationDuration / 2}ms ease-in;
-        transform: translate3d(0, 0, 0);
-      }
-    `;
+                .turbo-progress-bar {
+                    position: fixed;
+                    display: block;
+                    top: 0;
+                    left: 0;
+                    height: 3px;
+                    background: #0076ff;
+                    z-index: 9999;
+                    transition:
+                        width ${ProgressBar.animationDuration}ms ease-out,
+                        opacity ${ProgressBar.animationDuration / 2}ms ${ProgressBar.animationDuration / 2}ms ease-in;
+                    transform: translate3d(0, 0, 0);
+                }
+            `;
         }
 
         show()
@@ -1660,7 +1759,7 @@ Copyright © 2021 Basecamp, LLC
             return Object.keys(this.detailsByOuterHTML)
                 .filter(outerHTML => !(outerHTML in snapshot.detailsByOuterHTML))
                 .map(outerHTML => this.detailsByOuterHTML[outerHTML])
-                .filter(({type}) => type == matchedType)
+                .filter(({type}) => type === matchedType)
                 .map(({elements: [element]}) => element);
         }
 
@@ -1690,31 +1789,31 @@ Copyright © 2021 Basecamp, LLC
 
     function elementIsTracked(element)
     {
-        return element.getAttribute('data-turbo-track') == 'reload';
+        return element.getAttribute('data-turbo-track') === 'reload';
     }
 
     function elementIsScript(element)
     {
         const tagName = element.tagName.toLowerCase();
-        return tagName == 'script';
+        return tagName === 'script';
     }
 
     function elementIsNoscript(element)
     {
         const tagName = element.tagName.toLowerCase();
-        return tagName == 'noscript';
+        return tagName === 'noscript';
     }
 
     function elementIsStylesheet(element)
     {
         const tagName = element.tagName.toLowerCase();
-        return tagName == 'style' || (tagName == 'link' && element.getAttribute('rel') == 'stylesheet');
+        return tagName === 'style' || (tagName === 'link' && element.getAttribute('rel') === 'stylesheet');
     }
 
     function elementIsMetaElementWithName(element, name)
     {
         const tagName = element.tagName.toLowerCase();
-        return tagName == 'meta' && element.getAttribute('name') == name;
+        return tagName === 'meta' && element.getAttribute('name') === name;
     }
 
     function elementWithoutNonce(element)
@@ -1752,17 +1851,17 @@ Copyright © 2021 Basecamp, LLC
 
         get isPreviewable()
         {
-            return this.cacheControlValue != 'no-preview';
+            return this.cacheControlValue !== 'no-preview';
         }
 
         get isCacheable()
         {
-            return this.cacheControlValue != 'no-cache';
+            return this.cacheControlValue !== 'no-cache';
         }
 
         get isVisitable()
         {
-            return this.getSetting('visit-control') != 'reload';
+            return this.getSetting('visit-control') !== 'reload';
         }
 
         static fromHTMLString(html = '')
@@ -1811,7 +1910,10 @@ Copyright © 2021 Basecamp, LLC
     })(VisitState || (VisitState = {}));
     const defaultOptions = {
         action: 'advance',
-        historyChanged: false
+        historyChanged: false,
+        visitCachedSnapshot: () => {
+        },
+        willRender: true
     };
     var SystemStatusCode;
     (function (SystemStatusCode) {
@@ -1839,7 +1941,9 @@ Copyright © 2021 Basecamp, LLC
                 historyChanged,
                 referrer,
                 snapshotHTML,
-                response
+                response,
+                visitCachedSnapshot,
+                willRender
             } = Object.assign(Object.assign({}, defaultOptions), options);
             this.action = action;
             this.historyChanged = historyChanged;
@@ -1847,6 +1951,9 @@ Copyright © 2021 Basecamp, LLC
             this.snapshotHTML = snapshotHTML;
             this.response = response;
             this.isSamePage = this.delegate.locationWithActionIsSamePage(this.location, this.action);
+            this.visitCachedSnapshot = visitCachedSnapshot;
+            this.willRender = willRender;
+            this.scrolled = !willRender;
         }
 
         get adapter()
@@ -1876,7 +1983,7 @@ Copyright © 2021 Basecamp, LLC
 
         start()
         {
-            if (this.state == VisitState.initialized) {
+            if (this.state === VisitState.initialized) {
                 this.recordTimingMetric(TimingMetric.visitStart);
                 this.state = VisitState.started;
                 this.adapter.visitStarted(this);
@@ -1886,7 +1993,7 @@ Copyright © 2021 Basecamp, LLC
 
         cancel()
         {
-            if (this.state == VisitState.started) {
+            if (this.state === VisitState.started) {
                 if (this.request) {
                     this.request.cancel();
                 }
@@ -1897,7 +2004,7 @@ Copyright © 2021 Basecamp, LLC
 
         complete()
         {
-            if (this.state == VisitState.started) {
+            if (this.state === VisitState.started) {
                 this.recordTimingMetric(TimingMetric.visitEnd);
                 this.state = VisitState.completed;
                 this.adapter.visitCompleted(this);
@@ -1908,7 +2015,7 @@ Copyright © 2021 Basecamp, LLC
 
         fail()
         {
-            if (this.state == VisitState.started) {
+            if (this.state === VisitState.started) {
                 this.state = VisitState.failed;
                 this.adapter.visitFailed(this);
             }
@@ -1982,7 +2089,7 @@ Copyright © 2021 Basecamp, LLC
                         await this.view.renderPromise;
                     }
                     if (isSuccessful(statusCode) && responseHTML != null) {
-                        await this.view.renderPage(PageSnapshot.fromHTMLString(responseHTML));
+                        await this.view.renderPage(PageSnapshot.fromHTMLString(responseHTML), false, this.willRender);
                         this.adapter.visitRendered(this);
                         this.complete();
                     } else {
@@ -1998,7 +2105,7 @@ Copyright © 2021 Basecamp, LLC
         {
             const snapshot = this.view.getCachedSnapshotForLocation(this.location) || this.getPreloadedSnapshot();
             if (snapshot && (!getAnchor(this.location) || snapshot.hasAnchor(getAnchor(this.location)))) {
-                if (this.action == 'restore' || snapshot.isPreviewable) {
+                if (this.action === 'restore' || snapshot.isPreviewable) {
                     return snapshot;
                 }
             }
@@ -2029,7 +2136,7 @@ Copyright © 2021 Basecamp, LLC
                         if (this.view.renderPromise) {
                             await this.view.renderPromise;
                         }
-                        await this.view.renderPage(snapshot, isPreview);
+                        await this.view.renderPage(snapshot, isPreview, this.willRender);
                         this.adapter.visitRendered(this);
                         if (!isPreview) {
                             this.complete();
@@ -2041,7 +2148,8 @@ Copyright © 2021 Basecamp, LLC
 
         followRedirect()
         {
-            if (this.redirectedToLocation && !this.followedRedirect) {
+            var _a;
+            if (this.redirectedToLocation && !this.followedRedirect && ((_a = this.response) === null || _a === void 0 ? void 0 : _a.redirected)) {
                 this.adapter.visitProposedToLocation(this.redirectedToLocation, {
                     action: 'replace',
                     response: this.response
@@ -2072,13 +2180,18 @@ Copyright © 2021 Basecamp, LLC
         async requestSucceededWithResponse(request, response)
         {
             const responseHTML = await response.responseHTML;
-            if (responseHTML == undefined) {
-                this.recordResponse({statusCode: SystemStatusCode.contentTypeMismatch});
+            const {redirected, statusCode} = response;
+            if (responseHTML === undefined) {
+                this.recordResponse({
+                    statusCode: SystemStatusCode.contentTypeMismatch,
+                    redirected
+                });
             } else {
                 this.redirectedToLocation = response.redirected ? response.location : undefined;
                 this.recordResponse({
-                    statusCode: response.statusCode,
-                    responseHTML
+                    statusCode: statusCode,
+                    responseHTML,
+                    redirected
                 });
             }
         }
@@ -2086,19 +2199,27 @@ Copyright © 2021 Basecamp, LLC
         async requestFailedWithResponse(request, response)
         {
             const responseHTML = await response.responseHTML;
-            if (responseHTML == undefined) {
-                this.recordResponse({statusCode: SystemStatusCode.contentTypeMismatch});
+            const {redirected, statusCode} = response;
+            if (responseHTML === undefined) {
+                this.recordResponse({
+                    statusCode: SystemStatusCode.contentTypeMismatch,
+                    redirected
+                });
             } else {
                 this.recordResponse({
-                    statusCode: response.statusCode,
-                    responseHTML
+                    statusCode: statusCode,
+                    responseHTML,
+                    redirected
                 });
             }
         }
 
         requestErrored(request, error)
         {
-            this.recordResponse({statusCode: SystemStatusCode.networkFailure});
+            this.recordResponse({
+                statusCode: SystemStatusCode.networkFailure,
+                redirected: false
+            });
         }
 
         requestFinished()
@@ -2109,7 +2230,7 @@ Copyright © 2021 Basecamp, LLC
         performScroll()
         {
             if (!this.scrolled) {
-                if (this.action == 'restore') {
+                if (this.action === 'restore') {
                     this.scrollToRestoredPosition() || this.scrollToAnchor() || this.view.scrollToTop();
                 } else {
                     this.scrollToAnchor() || this.view.scrollToTop();
@@ -2169,17 +2290,17 @@ Copyright © 2021 Basecamp, LLC
         {
             if (this.isSamePage) {
                 return false;
-            } else if (this.action == 'restore') {
+            } else if (this.action === 'restore') {
                 return !this.hasCachedSnapshot();
             } else {
-                return true;
+                return this.willRender;
             }
         }
 
         cacheSnapshot()
         {
             if (!this.snapshotCached) {
-                this.view.cacheSnapshot();
+                this.view.cacheSnapshot().then(snapshot => snapshot && this.visitCachedSnapshot(snapshot));
                 this.snapshotCached = true;
             }
         }
@@ -2232,16 +2353,16 @@ Copyright © 2021 Basecamp, LLC
 
         visitStarted(visit)
         {
+            visit.loadCachedSnapshot();
             visit.issueRequest();
             visit.changeHistory();
             visit.goToSamePageAnchor();
-            visit.loadCachedSnapshot();
         }
 
         visitRequestStarted(visit)
         {
             this.progressBar.setValue(0);
-            if (visit.hasCachedSnapshot() || visit.action != 'restore') {
+            if (visit.hasCachedSnapshot() || visit.action !== 'restore') {
                 this.showVisitProgressBarAfterDelay();
             } else {
                 this.showProgressBar();
@@ -2382,8 +2503,8 @@ Copyright © 2021 Basecamp, LLC
                     const form = event.target instanceof HTMLFormElement ? event.target : undefined;
                     const submitter = event.submitter || undefined;
                     if (form) {
-                        const method = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('formmethod')) || form.method;
-                        if (method != 'dialog' && this.delegate.willSubmitForm(form, submitter)) {
+                        const method = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('formmethod')) || form.getAttribute('method');
+                        if (method !== 'dialog' && this.delegate.willSubmitForm(form, submitter)) {
                             event.preventDefault();
                             this.delegate.formSubmitted(form, submitter);
                         }
@@ -2440,14 +2561,13 @@ Copyright © 2021 Basecamp, LLC
         {
             const frame = this.findFrameElement(element);
             if (frame) {
-                frame.setAttribute('reloadable', '');
-                frame.src = url;
+                frame.delegate.linkClickIntercepted(element, url);
             }
         }
 
         shouldInterceptFormSubmission(element, submitter)
         {
-            return this.shouldRedirect(element, submitter);
+            return this.shouldSubmit(element, submitter);
         }
 
         formSubmissionIntercepted(element, submitter)
@@ -2459,16 +2579,25 @@ Copyright © 2021 Basecamp, LLC
             }
         }
 
+        shouldSubmit(form, submitter)
+        {
+            var _a;
+            const action = getAction(form, submitter);
+            const meta = this.element.ownerDocument.querySelector(`meta[name="turbo-root"]`);
+            const rootLocation = expandURL((_a = meta === null || meta === void 0 ? void 0 : meta.content) !== null && _a !== void 0 ? _a : '/');
+            return this.shouldRedirect(form, submitter) && locationIsVisitable(action, rootLocation);
+        }
+
         shouldRedirect(element, submitter)
         {
             const frame = this.findFrameElement(element, submitter);
-            return frame ? frame != element.closest('turbo-frame') : false;
+            return frame ? frame !== element.closest('turbo-frame') : false;
         }
 
         findFrameElement(element, submitter)
         {
             const id = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('data-turbo-frame')) || element.getAttribute('data-turbo-frame');
-            if (id && id != '_top') {
+            if (id && id !== '_top') {
                 const frame = this.element.querySelector(`#${id}:not([disabled])`);
                 if (frame instanceof FrameElement) {
                     return frame;
@@ -2576,7 +2705,7 @@ Copyright © 2021 Basecamp, LLC
 
         pageIsLoaded()
         {
-            return this.pageLoaded || document.readyState == 'complete';
+            return this.pageLoaded || document.readyState === 'complete';
         }
     }
 
@@ -2641,7 +2770,7 @@ Copyright © 2021 Basecamp, LLC
 
     function isAction(action)
     {
-        return action == 'advance' || action == 'replace' || action == 'restore';
+        return action === 'advance' || action === 'replace' || action === 'restore';
     }
 
     class Navigator
@@ -2679,7 +2808,11 @@ Copyright © 2021 Basecamp, LLC
         proposeVisit(location, options = {})
         {
             if (this.delegate.allowsVisitingLocationWithAction(location, options.action)) {
-                this.delegate.visitProposedToLocation(location, options);
+                if (locationIsVisitable(location, this.view.snapshot.rootLocation)) {
+                    this.delegate.visitProposedToLocation(location, options);
+                } else {
+                    window.location.href = location.toString();
+                }
             }
         }
 
@@ -2694,11 +2827,7 @@ Copyright © 2021 Basecamp, LLC
         {
             this.stop();
             this.formSubmission = new FormSubmission(this, form, submitter, true);
-            if (this.formSubmission.isIdempotent) {
-                this.proposeVisit(this.formSubmission.fetchRequest.url, {action: this.getActionForFormSubmission(this.formSubmission)});
-            } else {
-                this.formSubmission.start();
-            }
+            this.formSubmission.start();
         }
 
         stop()
@@ -2722,19 +2851,15 @@ Copyright © 2021 Basecamp, LLC
 
         async formSubmissionSucceededWithResponse(formSubmission, fetchResponse)
         {
-            if (formSubmission == this.formSubmission) {
+            if (formSubmission === this.formSubmission) {
                 const responseHTML = await fetchResponse.responseHTML;
                 if (responseHTML) {
-                    if (formSubmission.method != FetchMethod.get) {
+                    if (formSubmission.method !== FetchMethod.get) {
                         this.view.clearSnapshotCache();
                     }
-                    const {statusCode} = fetchResponse;
-                    const visitOptions = {
-                        response: {
-                            statusCode,
-                            responseHTML
-                        }
-                    };
+                    const {statusCode, redirected} = fetchResponse;
+                    const action = this.getActionForFormSubmission(formSubmission);
+                    const visitOptions = {action, response: {statusCode, responseHTML, redirected}};
                     this.proposeVisit(fetchResponse.location, visitOptions);
                 }
             }
@@ -2796,7 +2921,7 @@ Copyright © 2021 Basecamp, LLC
                 formElement,
                 submitter
             } = formSubmission;
-            const action = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('data-turbo-action')) || formElement.getAttribute('data-turbo-action');
+            const action = getAttribute('data-turbo-action', submitter, formElement);
             return isAction(action) ? action : 'advance';
         }
     }
@@ -2817,9 +2942,9 @@ Copyright © 2021 Basecamp, LLC
             this.started = false;
             this.interpretReadyState = () => {
                 const {readyState} = this;
-                if (readyState == 'interactive') {
+                if (readyState === 'interactive') {
                     this.pageIsInteractive();
-                } else if (readyState == 'complete') {
+                } else if (readyState === 'complete') {
                     this.pageIsComplete();
                 }
             };
@@ -2837,7 +2962,7 @@ Copyright © 2021 Basecamp, LLC
         start()
         {
             if (!this.started) {
-                if (this.stage == PageStage.initial) {
+                if (this.stage === PageStage.initial) {
                     this.stage = PageStage.loading;
                 }
                 document.addEventListener('readystatechange', this.interpretReadyState, false);
@@ -2857,7 +2982,7 @@ Copyright © 2021 Basecamp, LLC
 
         pageIsInteractive()
         {
-            if (this.stage == PageStage.loading) {
+            if (this.stage === PageStage.loading) {
                 this.stage = PageStage.interactive;
                 this.delegate.pageBecameInteractive();
             }
@@ -2866,7 +2991,7 @@ Copyright © 2021 Basecamp, LLC
         pageIsComplete()
         {
             this.pageIsInteractive();
-            if (this.stage == PageStage.interactive) {
+            if (this.stage === PageStage.interactive) {
                 this.stage = PageStage.complete;
                 this.delegate.pageLoaded();
             }
@@ -3063,7 +3188,7 @@ Copyright © 2021 Basecamp, LLC
 
         get trackedElementsAreIdentical()
         {
-            return this.currentHeadSnapshot.trackedElementSignature == this.newHeadSnapshot.trackedElementSignature;
+            return this.currentHeadSnapshot.trackedElementSignature === this.newHeadSnapshot.trackedElementSignature;
         }
 
         get newHeadStylesheetElements()
@@ -3098,7 +3223,9 @@ Copyright © 2021 Basecamp, LLC
 
         async render()
         {
-            this.replaceBody();
+            if (this.willRender) {
+                this.replaceBody();
+            }
         }
 
         finishRendering()
@@ -3260,9 +3387,9 @@ Copyright © 2021 Basecamp, LLC
             return this.snapshot.isCacheable;
         }
 
-        renderPage(snapshot, isPreview = false)
+        renderPage(snapshot, isPreview = false, willRender = true)
         {
-            const renderer = new PageRenderer(this.snapshot, snapshot, isPreview);
+            const renderer = new PageRenderer(this.snapshot, snapshot, isPreview, willRender);
             return this.render(renderer);
         }
 
@@ -3286,7 +3413,9 @@ Copyright © 2021 Basecamp, LLC
                     lastRenderedLocation: location
                 } = this;
                 await nextEventLoopTick();
-                this.snapshotCache.put(location, snapshot.clone());
+                const cachedSnapshot = snapshot.clone();
+                this.snapshotCache.put(location, cachedSnapshot);
+                return cachedSnapshot;
             }
         }
 
@@ -3422,7 +3551,7 @@ Copyright © 2021 Basecamp, LLC
 
         willFollowLinkToLocation(link, location)
         {
-            return this.elementDriveEnabled(link) && this.locationIsVisitable(location) && this.applicationAllowsFollowingLinkToLocation(link, location);
+            return this.elementDriveEnabled(link) && locationIsVisitable(location, this.snapshot.rootLocation) && this.applicationAllowsFollowingLinkToLocation(link, location);
         }
 
         followedLinkToLocation(link, location)
@@ -3433,14 +3562,23 @@ Copyright © 2021 Basecamp, LLC
 
         convertLinkWithMethodClickToFormSubmission(link)
         {
-            var _a;
             const linkMethod = link.getAttribute('data-turbo-method');
             if (linkMethod) {
                 const form = document.createElement('form');
                 form.method = linkMethod;
                 form.action = link.getAttribute('href') || 'undefined';
                 form.hidden = true;
-                (_a = link.parentNode) === null || _a === void 0 ? void 0 : _a.insertBefore(form, link);
+                if (link.hasAttribute('data-turbo-confirm')) {
+                    form.setAttribute('data-turbo-confirm', link.getAttribute('data-turbo-confirm'));
+                }
+                const frame = this.getTargetFrameForLink(link);
+                if (frame) {
+                    form.setAttribute('data-turbo-frame', frame);
+                    form.addEventListener('turbo:submit-start', () => form.remove());
+                } else {
+                    form.addEventListener('submit', () => form.remove());
+                }
+                document.body.appendChild(form);
                 return dispatch('submit', {
                     cancelable: true,
                     target: form
@@ -3486,7 +3624,8 @@ Copyright © 2021 Basecamp, LLC
 
         willSubmitForm(form, submitter)
         {
-            return this.elementDriveEnabled(form) && (!submitter || this.elementDriveEnabled(submitter));
+            const action = getAction(form, submitter);
+            return this.elementDriveEnabled(form) && (!submitter || this.elementDriveEnabled(submitter)) && locationIsVisitable(expandURL(action), this.snapshot.rootLocation);
         }
 
         formSubmitted(form, submitter)
@@ -3581,6 +3720,7 @@ Copyright © 2021 Basecamp, LLC
 
         notifyApplicationAfterVisitingLocation(location, action)
         {
+            markAsBusy(document.documentElement);
             return dispatch('turbo:visit', {
                 detail: {
                     url: location.href,
@@ -3612,6 +3752,7 @@ Copyright © 2021 Basecamp, LLC
 
         notifyApplicationAfterPageLoad(timing = {})
         {
+            clearBusyState(document.documentElement);
             return dispatch('turbo:load', {
                 detail: {
                     url: this.location.href,
@@ -3647,13 +3788,13 @@ Copyright © 2021 Basecamp, LLC
             const container = element === null || element === void 0 ? void 0 : element.closest('[data-turbo]');
             if (this.drive) {
                 if (container) {
-                    return container.getAttribute('data-turbo') != 'false';
+                    return container.getAttribute('data-turbo') !== 'false';
                 } else {
                     return true;
                 }
             } else {
                 if (container) {
-                    return container.getAttribute('data-turbo') == 'true';
+                    return container.getAttribute('data-turbo') === 'true';
                 } else {
                     return false;
                 }
@@ -3666,9 +3807,17 @@ Copyright © 2021 Basecamp, LLC
             return isAction(action) ? action : 'advance';
         }
 
-        locationIsVisitable(location)
+        getTargetFrameForLink(link)
         {
-            return isPrefixedBy(location, this.snapshot.rootLocation) && isHTML(location);
+            const frame = link.getAttribute('data-turbo-frame');
+            if (frame) {
+                return frame;
+            } else {
+                const container = link.closest('turbo-frame');
+                if (container) {
+                    return container.id;
+                }
+            }
         }
     }
 
@@ -3729,6 +3878,11 @@ Copyright © 2021 Basecamp, LLC
         session.setProgressBarDelay(delay);
     }
 
+    function setConfirmMethod(confirmMethod)
+    {
+        FormSubmission.confirmMethod = confirmMethod;
+    }
+
     var Turbo = /*#__PURE__*/Object.freeze({
         __proto__: null,
         navigator: navigator$1,
@@ -3742,13 +3896,17 @@ Copyright © 2021 Basecamp, LLC
         disconnectStreamSource: disconnectStreamSource,
         renderStreamMessage: renderStreamMessage,
         clearCache: clearCache,
-        setProgressBarDelay: setProgressBarDelay
+        setProgressBarDelay: setProgressBarDelay,
+        setConfirmMethod: setConfirmMethod
     });
 
     class FrameController
     {
         constructor(element)
         {
+            this.fetchResponseLoaded = (fetchResponse) => {
+            };
+            this.currentFetchRequest = null;
             this.resolveVisitPromise = () => {
             };
             this.connected = false;
@@ -3817,12 +3975,20 @@ Copyright © 2021 Basecamp, LLC
             return this.element.isActive && this.connected;
         }
 
+        get rootLocation()
+        {
+            var _a;
+            const meta = this.element.ownerDocument.querySelector(`meta[name="turbo-root"]`);
+            const root = (_a = meta === null || meta === void 0 ? void 0 : meta.content) !== null && _a !== void 0 ? _a : '/';
+            return expandURL(root);
+        }
+
         connect()
         {
             if (!this.connected) {
                 this.connected = true;
                 this.reloadable = false;
-                if (this.loadingStyle == FrameLoadingStyle.lazy) {
+                if (this.loadingStyle === FrameLoadingStyle.lazy) {
                     this.appearanceObserver.start();
                 }
                 this.linkInterceptor.start();
@@ -3843,21 +4009,21 @@ Copyright © 2021 Basecamp, LLC
 
         disabledChanged()
         {
-            if (this.loadingStyle == FrameLoadingStyle.eager) {
+            if (this.loadingStyle === FrameLoadingStyle.eager) {
                 this.loadSourceURL();
             }
         }
 
         sourceURLChanged()
         {
-            if (this.loadingStyle == FrameLoadingStyle.eager || this.hasBeenLoaded) {
+            if (this.loadingStyle === FrameLoadingStyle.eager || this.hasBeenLoaded) {
                 this.loadSourceURL();
             }
         }
 
         loadingStyleChanged()
         {
-            if (this.loadingStyle == FrameLoadingStyle.lazy) {
+            if (this.loadingStyle === FrameLoadingStyle.lazy) {
                 this.appearanceObserver.start();
             } else {
                 this.appearanceObserver.stop();
@@ -3867,16 +4033,15 @@ Copyright © 2021 Basecamp, LLC
 
         async loadSourceURL()
         {
-            if (!this.settingSourceURL && this.enabled && this.isActive && (this.reloadable || this.sourceURL != this.currentURL)) {
+            if (!this.settingSourceURL && this.enabled && this.isActive && (this.reloadable || this.sourceURL !== this.currentURL)) {
                 const previousURL = this.currentURL;
                 this.currentURL = this.sourceURL;
                 if (this.sourceURL) {
                     try {
-                        this.element.loaded = this.visit(this.sourceURL);
+                        this.element.loaded = this.visit(expandURL(this.sourceURL));
                         this.appearanceObserver.stop();
                         await this.element.loaded;
                         this.hasBeenLoaded = true;
-                        session.frameLoaded(this.element);
                     } catch (error) {
                         this.currentURL = previousURL;
                         throw error;
@@ -3887,7 +4052,7 @@ Copyright © 2021 Basecamp, LLC
 
         async loadResponse(fetchResponse)
         {
-            if (fetchResponse.redirected) {
+            if (fetchResponse.redirected || (fetchResponse.succeeded && fetchResponse.isHTML)) {
                 this.sourceURL = fetchResponse.response.url;
             }
             try {
@@ -3895,16 +4060,21 @@ Copyright © 2021 Basecamp, LLC
                 if (html) {
                     const {body} = parseHTMLDocument(html);
                     const snapshot = new Snapshot(await this.extractForeignFrameElement(body));
-                    const renderer = new FrameRenderer(this.view.snapshot, snapshot, false);
+                    const renderer = new FrameRenderer(this.view.snapshot, snapshot, false, false);
                     if (this.view.renderPromise) {
                         await this.view.renderPromise;
                     }
                     await this.view.render(renderer);
                     session.frameRendered(fetchResponse, this.element);
+                    session.frameLoaded(this.element);
+                    this.fetchResponseLoaded(fetchResponse);
                 }
             } catch (error) {
                 console.error(error);
                 this.view.invalidate();
+            } finally {
+                this.fetchResponseLoaded = () => {
+                };
             }
         }
 
@@ -3940,13 +4110,9 @@ Copyright © 2021 Basecamp, LLC
             }
             this.reloadable = false;
             this.formSubmission = new FormSubmission(this, element, submitter);
-            if (this.formSubmission.fetchRequest.isIdempotent) {
-                this.navigateFrame(element, this.formSubmission.fetchRequest.url.href, submitter);
-            } else {
-                const {fetchRequest} = this.formSubmission;
-                this.prepareHeadersForRequest(fetchRequest.headers, fetchRequest);
-                this.formSubmission.start();
-            }
+            const {fetchRequest} = this.formSubmission;
+            this.prepareHeadersForRequest(fetchRequest.headers, fetchRequest);
+            this.formSubmission.start();
         }
 
         prepareHeadersForRequest(headers, request)
@@ -3956,7 +4122,7 @@ Copyright © 2021 Basecamp, LLC
 
         requestStarted(request)
         {
-            this.element.setAttribute('busy', '');
+            markAsBusy(this.element);
         }
 
         requestPreventedHandlingResponse(request, response)
@@ -3984,18 +4150,18 @@ Copyright © 2021 Basecamp, LLC
 
         requestFinished(request)
         {
-            this.element.removeAttribute('busy');
+            clearBusyState(this.element);
         }
 
-        formSubmissionStarted(formSubmission)
+        formSubmissionStarted({formElement})
         {
-            const frame = this.findFrameElement(formSubmission.formElement);
-            frame.setAttribute('busy', '');
+            markAsBusy(formElement, this.findFrameElement(formElement));
         }
 
         formSubmissionSucceededWithResponse(formSubmission, response)
         {
             const frame = this.findFrameElement(formSubmission.formElement, formSubmission.submitter);
+            this.proposeVisitIfNavigatedWithAction(frame, formSubmission.formElement, formSubmission.submitter);
             frame.delegate.loadResponse(response);
         }
 
@@ -4009,10 +4175,9 @@ Copyright © 2021 Basecamp, LLC
             console.error(error);
         }
 
-        formSubmissionFinished(formSubmission)
+        formSubmissionFinished({formElement})
         {
-            const frame = this.findFrameElement(formSubmission.formElement);
-            frame.removeAttribute('busy');
+            clearBusyState(formElement, this.findFrameElement(formElement));
         }
 
         allowsImmediateRender(snapshot, resume)
@@ -4030,11 +4195,15 @@ Copyright © 2021 Basecamp, LLC
 
         async visit(url)
         {
-            const request = new FetchRequest(this, FetchMethod.get, expandURL(url), undefined, this.element);
+            var _a;
+            const request = new FetchRequest(this, FetchMethod.get, url, new URLSearchParams, this.element);
+            (_a = this.currentFetchRequest) === null || _a === void 0 ? void 0 : _a.cancel();
+            this.currentFetchRequest = request;
             return new Promise(resolve => {
                 this.resolveVisitPromise = () => {
                     this.resolveVisitPromise = () => {
                     };
+                    this.currentFetchRequest = null;
                     resolve();
                 };
                 request.perform();
@@ -4044,14 +4213,43 @@ Copyright © 2021 Basecamp, LLC
         navigateFrame(element, url, submitter)
         {
             const frame = this.findFrameElement(element, submitter);
+            this.proposeVisitIfNavigatedWithAction(frame, element, submitter);
             frame.setAttribute('reloadable', '');
             frame.src = url;
+        }
+
+        proposeVisitIfNavigatedWithAction(frame, element, submitter)
+        {
+            const action = getAttribute('data-turbo-action', submitter, element, frame);
+            if (isAction(action)) {
+                const {visitCachedSnapshot} = new SnapshotSubstitution(frame);
+                frame.delegate.fetchResponseLoaded = (fetchResponse) => {
+                    if (frame.src) {
+                        const {
+                            statusCode,
+                            redirected
+                        } = fetchResponse;
+                        const responseHTML = frame.ownerDocument.documentElement.outerHTML;
+                        const response = {
+                            statusCode,
+                            redirected,
+                            responseHTML
+                        };
+                        session.visit(frame.src, {
+                            action,
+                            response,
+                            visitCachedSnapshot,
+                            willRender: false
+                        });
+                    }
+                };
+            }
         }
 
         findFrameElement(element, submitter)
         {
             var _a;
-            const id = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('data-turbo-frame')) || element.getAttribute('data-turbo-frame') || this.element.getAttribute('target');
+            const id = getAttribute('data-turbo-frame', submitter, element) || this.element.getAttribute('target');
             return (_a = getFrameElementById(id)) !== null && _a !== void 0 ? _a : this.element;
         }
 
@@ -4074,9 +4272,18 @@ Copyright © 2021 Basecamp, LLC
             return new FrameElement();
         }
 
+        formActionIsVisitable(form, submitter)
+        {
+            const action = getAction(form, submitter);
+            return locationIsVisitable(expandURL(action), this.rootLocation);
+        }
+
         shouldInterceptNavigation(element, submitter)
         {
-            const id = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('data-turbo-frame')) || element.getAttribute('data-turbo-frame') || this.element.getAttribute('target');
+            const id = getAttribute('data-turbo-frame', submitter, element) || this.element.getAttribute('target');
+            if (element instanceof HTMLFormElement && !this.formActionIsVisitable(element, submitter)) {
+                return false;
+            }
             if (!this.enabled || id === '_top') {
                 return false;
             }
@@ -4091,6 +4298,20 @@ Copyright © 2021 Basecamp, LLC
             }
             return !(submitter && !session.elementDriveEnabled(submitter));
 
+        }
+    }
+
+    class SnapshotSubstitution
+    {
+        constructor(element)
+        {
+            this.visitCachedSnapshot = ({element}) => {
+                var _a;
+                const {id, clone} = this;
+                (_a = element.querySelector('#' + id)) === null || _a === void 0 ? void 0 : _a.replaceWith(clone);
+            };
+            this.clone = element.cloneNode(true);
+            this.id = element.id;
         }
     }
 
@@ -4116,6 +4337,7 @@ Copyright © 2021 Basecamp, LLC
             }
             if (element instanceof FrameElement) {
                 element.connectedCallback();
+                element.disconnectedCallback();
                 return element;
             }
         }
@@ -4315,7 +4537,7 @@ Copyright © 2021 Basecamp, LLC
                 return;
             }
             while (element = element.parentElement) {
-                if (element == document.body) {
+                if (element === document.body) {
                     return console.warn(unindent`
             You are loading Turbo from a <script> element inside the <body> element. This is probably not what you meant to do!
 
@@ -4343,10 +4565,11 @@ Copyright © 2021 Basecamp, LLC
     exports.registerAdapter = registerAdapter;
     exports.renderStreamMessage = renderStreamMessage;
     exports.session = session;
+    exports.setConfirmMethod = setConfirmMethod;
     exports.setProgressBarDelay = setProgressBarDelay;
     exports.start = start;
     exports.visit = visit;
 
     Object.defineProperty(exports, '__esModule', {value: true});
 
-}));
+})));
