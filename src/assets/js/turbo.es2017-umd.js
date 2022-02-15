@@ -4117,7 +4117,15 @@ Copyright © 2021 Basecamp, LLC
 
         prepareHeadersForRequest(headers, request)
         {
-            headers['Turbo-Frame'] = this.id;
+            let id = this.id;
+            if (
+                this.formSubmission &&
+                this.formSubmission.state < FormSubmissionState.waiting
+                && this.formSubmission.formElement.dataset.turboFrame
+            ) {
+                id = this.formSubmission.formElement.dataset.turboFrame;
+            }
+            headers['Turbo-Frame'] = id;
         }
 
         requestStarted(request)
