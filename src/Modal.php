@@ -75,10 +75,10 @@ jQuery(document).on('click.sa.turbo', '[data-turbo-frame="$id-frame"]', function
     evt.preventDefault();
 
     \$modal.modal('show');
-    if (frame.src === \$this.prop('href')) {
+    if (frame.src === \$this.attr('href')) {
         frame.reload();
     } else {
-        frame.src = \$this.prop('href');
+        frame.src = \$this.attr('href');
     }
 });
 JS;
