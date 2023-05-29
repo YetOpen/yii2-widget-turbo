@@ -14,11 +14,13 @@ use yii\web\View;
  */
 class TurboAsset extends AssetBundle
 {
+    public $sourcePath = '@npm/hotwired--turbo/dist';
+
     /**
      * @inheritdoc
      */
     public $js = [
-        'js/turbo.es2017-umd.js'
+        'turbo.es2017-umd.js'
     ];
 
     /**
